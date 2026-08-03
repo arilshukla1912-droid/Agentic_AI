@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Agentic AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0d;--sidebar:#171717;--surface:#1e1e1e;--surface2:#2a2a2a;
+  --border:rgba(255,255,255,0.08);--text:#ececec;--text2:rgba(255,255,255,0.5);
+  --text3:rgba(255,255,255,0.3);--accent:#9333ea;--accent2:#7c3aed;
+  --user-bg:#9333ea;--ai-bg:#1e1e1e;
+  --stroke:#ffffff;--spark:#c084fc;
+  --font-brand:'Sora','Inter',sans-serif;
+}
+html{height:100%}
+body{
+  height:100%;
+  background:radial-gradient(circle at top, #251341 0%, #09090f 70%);
+  background-color:var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  font-size:15px;
+  overflow:hidden;
+}
+.brand-name{font-family:var(--font-brand);font-weight:700;letter-spacing:-0.3px}
+
+/* ── LAYOUT ── */
+#app{display:flex;height:100vh;height:100dvh;width:100vw}
+
+/* ── SIDEBAR ── */
+#sidebar{width:260px;min-width:260px;background:var(--sidebar);display:flex;flex-direction:column;border-right:1px solid var(--border);transition:transform .3s;z-index:100}
+#sidebar-top{padding:12px;border-bottom:1px solid var(--border)}
+#new-chat{width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:'Inter',sans-serif;font-weight:500;cursor:pointer;transition:background .15s}
+#new-chat:hover{background:var(--surface2)}
+#new-chat svg{flex-shrink:0}
+.sidebar-label{padding:16px 14px 8px;font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.8px;text-transform:uppercase}
+#history{flex:1;overflow-y:auto;padding:0 8px}
+#history::-webkit-scrollbar{width:3px}
+#history::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+.hist-item{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text2);transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-item:hover{background:var(--surface);color:var(--text)}
+.hist-item svg{flex-shrink:0;opacity:.5}
+#sidebar-footer{padding:12px;border-top:1px solid var(--border)}
+.footer-btn{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text2);transition:all .15s;width:100%;background:none;border:none;font-family:'Inter',sans-serif}
+.footer-btn:hover{background:var(--surface);color:var(--text)}
+
+/* ── LOGO SVG STYLES ── */
+.bomb-logo {
+  width: 36px;
+  height: 36px;
+  filter: drop-shadow(0 0 6px rgba(147, 51, 234, 0.6));
+  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), filter 0.35s ease;
+}
+.bomb-logo:hover {
+  transform: scale(1.12) rotate(-2deg);
+  filter: drop-shadow(0 0 12px rgba(192, 132, 252, 0.85));
+}
+/* Context-specific sizing so the mark reads correctly in every placement */
+.logo-mark .bomb-logo{width:48px;height:48px}
+.avatar-logo .bomb-logo{width:22px;height:22px}
+.msg-icon .bomb-logo{width:20px;height:20px}
+.mob-title .bomb-logo{width:22px;height:22px}
+
+/* Running animation — applied only while the bot is actively thinking/streaming */
+.bomb-logo.running {
+  animation: runAnimation 0.5s infinite alternate ease-in-out;
+}
+@keyframes runAnimation {
+  0% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translateY(-6px) rotate(-8deg) scale(1.05);
+  }
+  100% {
+    transform: translateY(0) rotate(8deg) scale(1);
+  }
+}
+.bomb-stroke {
+  fill: none;
+  stroke: var(--stroke);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.bomb-eye { fill: var(--stroke); }
+.bomb-spark {
+  stroke: var(--spark);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+/* Custom Avatar Box */
+.avatar-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #9333ea, #4f46e5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── MAIN ── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+/* Mobile header */
+#mob-header{display:none;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:20;flex-shrink:0}
+#mob-header button{background:none;border:none;color:var(--text);cursor:pointer;padding:4px;border-radius:6px}
+#mob-header button:hover{background:var(--surface)}
+.mob-title{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+
+/* ── EMPTY STATE ── */
+#empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;overflow-y:auto}
+.logo-mark{
+  width:64px;
+  height:64px;
+  border-radius:18px;
+  background:linear-gradient(135deg, #251341 0%, #12121d 100%);
+  border:1px solid rgba(139,92,246,0.3);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-bottom:20px;
+  box-shadow:0 0 35px rgba(147,51,234,0.3);
+}
+.empty-title{font-size:26px;font-weight:700;margin-bottom:8px;background:linear-gradient(135deg,#fff 0%,rgba(255,255,255,0.7) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.empty-sub{color:var(--text2);font-size:14px;font-weight:400;margin-bottom:36px;text-align:center;max-width:400px;line-height:1.6}
+.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;max-width:560px;width:100%}
+.card{background:#1e1e24;border:1px solid #2e2e38;border-radius:10px;padding:12px;cursor:pointer;transition:background .2s,border-color .2s,transform .2s;text-align:left}
+.card:hover{background:#282832;border-color:rgba(147,51,234,0.4);transform:translateY(-1px)}
+.card-icon{font-size:18px;margin-bottom:8px}
+.card-title{font-size:14px;font-weight:500;color:#fff;margin-bottom:4px}
+.card-sub{font-size:12px;color:#a0a0b0;line-height:1.4}
+
+/* ── MESSAGES ── */
+#chat-body{flex:1;overflow-y:auto;padding:0;display:none;flex-direction:column}
+#chat-body::-webkit-scrollbar{width:4px}
+#chat-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:4px}
+.msg-group{padding:24px max(16px, calc((100% - 800px)/2));display:flex;flex-direction:column;gap:0}
+.msg-row{display:flex;align-items:flex-start;gap:14px;padding:6px 0}
+.msg-row.user{justify-content:flex-end}
+.msg-row.ai{justify-content:flex-start}
+.msg-icon{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.msg-icon.ai-icon{background:linear-gradient(135deg,#9333ea,#4f46e5);box-shadow:0 0 16px rgba(147,51,234,0.25)}
+.msg-bubble{max-width:min(680px,85%);font-size:14.5px;line-height:1.7;font-weight:400}
+.msg-bubble.user{background:var(--user-bg);color:#fff;padding:12px 18px;border-radius:20px 20px 4px 20px;font-weight:400}
+.msg-bubble.ai{color:var(--text);padding:4px 0}
+.msg-bubble.ai h1,.msg-bubble.ai h2,.msg-bubble.ai h3{font-weight:600;margin:16px 0 8px;color:#fff}
+.msg-bubble.ai h1{font-size:18px}.msg-bubble.ai h2{font-size:16px}.msg-bubble.ai h3{font-size:15px}
+.msg-bubble.ai p{margin:0 0 10px;color:var(--text)}
+.msg-bubble.ai p:last-child{margin-bottom:0}
+.msg-bubble.ai ul,.msg-bubble.ai ol{margin:8px 0 10px 20px;color:var(--text)}
+.msg-bubble.ai li{margin-bottom:5px;line-height:1.6}
+.msg-bubble.ai strong{color:#fff;font-weight:600}
+.msg-bubble.ai em{color:rgba(255,255,255,0.8)}
+.msg-bubble.ai code{background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;font-size:13px;font-family:monospace}
+.msg-bubble.ai pre{background:#111;border:1px solid var(--border);border-radius:10px;padding:14px;overflow-x:auto;margin:10px 0}
+.msg-bubble.ai pre code{background:none;padding:0;font-size:13px}
+.msg-bubble.ai blockquote{border-left:3px solid var(--accent);padding:8px 14px;margin:10px 0;background:rgba(147,51,234,0.06);border-radius:0 8px 8px 0;color:var(--text2)}
+.msg-bubble.ai hr{border:none;border-top:1px solid var(--border);margin:16px 0}
+
+/* Cursor blink */
+.cursor{display:inline-block;width:2px;height:16px;background:var(--accent);margin-left:2px;vertical-align:middle;animation:blink .7s steps(1) infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* Action bar */
+.msg-actions{display:flex;gap:4px;margin-top:8px;opacity:0;transition:opacity .2s}
+.msg-row:hover .msg-actions{opacity:1}
+.act-btn{display:flex;align-items:center;gap:5px;padding:5px 9px;border-radius:7px;background:none;border:1px solid transparent;color:var(--text3);font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;transition:all .15s}
+.act-btn:hover{background:var(--surface);border-color:var(--border);color:var(--text2)}
+.act-btn svg{width:13px;height:13px}
+
+/* Typing indicator */
+#typing{display:none;padding:6px 0;align-items:center;gap:6px}
+#typing.show{display:flex}
+.typing-dots{display:flex;gap:5px;padding:12px 16px;background:var(--ai-bg);border-radius:16px}
+.td{width:7px;height:7px;border-radius:50%;background:rgba(147,51,234,0.7);animation:bounce 1.2s ease-in-out infinite}
+.td:nth-child(2){animation-delay:.2s}.td:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-6px);opacity:1}}
+
+/* ── INPUT AREA ── */
+#input-zone{padding:16px max(16px,calc((100% - 800px)/2)) 20px;background:transparent;border-top:1px solid var(--border);flex-shrink:0}
+#input-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;align-items:end;gap:10px;transition:border-color .2s;box-shadow:0 0 0 0 rgba(147,51,234,0)}
+#input-box:focus-within{border-color:rgba(147,51,234,0.5);box-shadow:0 0 0 3px rgba(147,51,234,0.08)}
+#inp{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:14.5px;font-family:'Inter',sans-serif;font-weight:400;line-height:1.5;resize:none;max-height:160px;overflow-y:auto;caret-color:var(--accent)}
+#inp::placeholder{color:var(--text3)}
+#inp-left{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.inp-action{width:32px;height:32px;border-radius:8px;background:none;border:none;color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.inp-action:hover{background:var(--surface2);color:var(--text2)}
+#send-btn{width:36px;height:36px;border-radius:10px;background:var(--accent);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;opacity:.4}
+#send-btn.active{opacity:1}
+#send-btn:hover.active{background:var(--accent2);transform:scale(1.05)}
+.inp-hint{text-align:center;font-size:11px;color:var(--text3);margin-top:10px}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(10px);background:#1e1e1e;border:1px solid rgba(255,255,255,0.12);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:9999;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── MOBILE ── */
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99;backdrop-filter:blur(2px)}
+@media(max-width:768px){
+  #sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);z-index:100}
+  #sidebar.open{transform:translateX(0)}
+  #overlay.show{display:block}
+  #mob-header{display:flex}
+  .cards{gap:8px}
+  .card{padding:10px}
+  .empty-title{font-size:22px}
+  #input-zone{padding:12px 12px 16px}
+}
+</style>
+</head>
+<body>
+
+<!-- TEMPLATE REUSABLE BOMB SVG -->
+<svg style="display:none;">
+  <g id="bomb-icon">
+    <g class="bomb-stroke">
+      <line x1="56" y1="108" x2="72" y2="108"/>
+      <path d="M40 94 C24 94 24 122 40 122 C56 122 56 94 40 94Z"/>
+      <path d="M40 122 C24 122 24 150 40 150 C56 150 56 122 40 122Z"/>
+    </g>
+    <circle cx="120" cy="110" r="60" class="bomb-stroke"/>
+    <path d="M122 52 C120 34 134 30 140 18" class="bomb-stroke"/>
+    <rect x="116" y="48" width="12" height="8" rx="2" fill="#ffffff"/>
+    <g class="bomb-spark">
+      <line x1="140" y1="18" x2="140" y2="4"/>
+      <line x1="140" y1="18" x2="151" y2="9"/>
+      <line x1="140" y1="18" x2="153" y2="20"/>
+      <line x1="140" y1="18" x2="149" y2="30"/>
+      <line x1="140" y1="18" x2="128" y2="10"/>
+      <line x1="140" y1="18" x2="126" y2="22"/>
+    </g>
+    <ellipse class="bomb-eye" cx="150" cy="103" rx="8" ry="15"/>
+    <ellipse class="bomb-eye" cx="173" cy="103" rx="8" ry="15"/>
+    <ellipse cx="96" cy="174" rx="14" ry="25" transform="rotate(20 96 174)" class="bomb-stroke"/>
+    <ellipse cx="176" cy="166" rx="24" ry="11" transform="rotate(-25 176 166)" class="bomb-stroke"/>
+  </g>
+</svg>
+
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div id="sidebar-top">
+      <button id="new-chat" onclick="newChat()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        New Chat
+        <span style="margin-left:auto;font-size:11px;color:var(--text3);background:var(--surface2);padding:2px 7px;border-radius:5px">⌘ N</span>
+      </button>
+    </div>
+    <div class="sidebar-label">Recent</div>
+    <div id="history"></div>
+    <div id="sidebar-footer">
+      <button class="footer-btn">
+        <div class="avatar-logo">
+          <svg class="bomb-logo" viewBox="0 0 220 220"><use href="#bomb-icon"/></svg>
+        </div>
+        <div style="flex:1;text-align:left">
+          <div class="brand-name" style="font-size:14px;color:var(--text)">Agentic AI</div>
+          <div style="font-size:11px;color:var(--text3)">Business Growth Coach</div>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- MOBILE OVERLAY -->
+  <div id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- MAIN -->
+  <div id="main">
+
+    <!-- Mobile Header -->
+    <div id="mob-header">
+      <button onclick="openSidebar()">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <span class="mob-title">
+        <svg class="bomb-logo" viewBox="0 0 220 220"><use href="#bomb-icon"/></svg>
+        <span class="brand-name">Agentic AI</span>
+      </span>
+      <button onclick="newChat()">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+
+    <!-- EMPTY STATE -->
+    <div id="empty">
+      <div class="logo-mark">
+        <svg class="bomb-logo" viewBox="0 0 220 220"><use href="#bomb-icon"/></svg>
+      </div>
+      <div class="empty-title brand-name">Agentic AI</div>
+      <div class="empty-sub">Your AI business growth coach. Tell me about your business and I'll build you a full strategy to get more customers.</div>
+      <div class="cards">
+        <div class="card" onclick="useCard(this)">
+          <div class="card-icon">📱</div>
+          <div class="card-title">Post Ideas</div>
+          <div class="card-sub">Give me 3 viral post ideas for my local gym</div>
+        </div>
+        <div class="card" onclick="useCard(this)">
+          <div class="card-icon">🧲</div>
+          <div class="card-title">Offer Strategy</div>
+          <div class="card-sub">Create a killer offer to attract new customers</div>
+        </div>
+        <div class="card" onclick="useCard(this)">
+          <div class="card-icon">🎥</div>
+          <div class="card-title">Reel Script</div>
+          <div class="card-sub">Write me a viral reel script for my cafe</div>
+        </div>
+        <div class="card" onclick="useCard(this)">
+          <div class="card-icon">📅</div>
+          <div class="card-title">7-Day Plan</div>
+          <div class="card-sub">Build me a complete 7-day content calendar</div>
+        </div>
+        <div class="card" onclick="useCard(this)">
+          <div class="card-icon">💬</div>
+          <div class="card-title">DM Replies</div>
+          <div class="card-sub">Write DM reply templates that convert leads</div>
+        </div>
+        <div class="card" onclick="useCard(this)">
+          <div class="card-icon">📈</div>
+          <div class="card-title">Growth Plan</div>
+          <div class="card-sub">Build me a full business growth strategy</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT BODY -->
+    <div id="chat-body">
+      <div id="msg-container" style="padding:16px 0;display:flex;flex-direction:column;flex:1"></div>
+      <div id="typing" style="padding:0 max(16px,calc((100% - 800px)/2)) 8px">
+        <div class="msg-icon ai-icon">
+          <svg class="bomb-logo running" viewBox="0 0 220 220"><use href="#bomb-icon"/></svg>
+        </div>
+        <div class="typing-dots"><div class="td"></div><div class="td"></div><div class="td"></div></div>
+      </div>
+    </div>
+
+    <!-- INPUT -->
+    <div id="input-zone">
+      <div id="input-box">
+        <div id="inp-left">
+          <button class="inp-action" title="Attach">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+        </div>
+        <textarea id="inp" rows="1" placeholder="Message Agentic AI…"></textarea>
+        <button id="send-btn" onclick="sendMsg()" title="Send">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="inp-hint">Agentic AI can make mistakes. Verify important information.</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── MOCK MODE ──
+// Set back to true if you ever want to test the UI without hitting the real API.
+const MOCK_MODE = false;
+
+// Requests now go through our own /api/chat proxy (see /api/chat.js),
+// so no API key needs to live in this client-side file anymore.
+const MODEL = 'openai/gpt-oss-120b';
+const API = '/api/chat';
+
+const SYSTEM = `You are Agentic AI — a premium AI business coach designed to help local businesses (gyms, cafes, small businesses, and creators) grow faster using content, offers, and messaging.
+
+Your main goal: Help the user get MORE CUSTOMERS (DMs, footfall, conversions).
+
+You do NOT act like a generic AI. You act like a sharp business coach + growth strategist.
+
+OUTPUT RULES:
+1. Always focus on RESULTS (customers, leads, conversions)
+2. Keep language simple, clear, and human (no robotic tone)
+3. Use clean formatting with headers, bullet points, and bold text
+4. Every content must include a CTA
+5. Prioritize practical ideas over theory
+6. Make outputs feel ready-to-use
+
+When giving a full growth plan, use this structure:
+
+## 🔹 Business Growth Plan
+
+### 1. 📱 Post Ideas
+- **Idea 1:** ...
+- **Idea 2:** ...
+- **Idea 3:** ...
+
+### 2. ✍️ Captions (ready to post)
+...
+
+### 3. 🎥 Reel Ideas
+...
+
+### 4. 🧲 Offer Idea
+...
+
+### 5. 💬 DM Replies
+- **"price?"** → ...
+- **"details?"** → ...
+
+### 6. 🗓️ 7-Day Content Plan
+| Day | Content |
+|-----|---------|
+| Day 1 | ... |
+
+STYLE: Premium, confident, helpful. Write like a human marketer, NOT an AI.`;
+
+let history = [];
+let busy = false;
+
+marked.setOptions({ breaks: true, gfm: true });
+
+const emptyEl = document.getElementById('empty');
+const chatBodyEl = document.getElementById('chat-body');
+const msgContainer = document.getElementById('msg-container');
+const inpEl = document.getElementById('inp');
+const sendBtn = document.getElementById('send-btn');
+const typingEl = document.getElementById('typing');
+const historyEl = document.getElementById('history');
+
+inpEl.addEventListener('input', () => {
+  inpEl.style.height = 'auto';
+  inpEl.style.height = Math.min(inpEl.scrollHeight, 160) + 'px';
+  sendBtn.classList.toggle('active', inpEl.value.trim().length > 0);
+});
+inpEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+});
+
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('overlay').classList.add('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+function newChat() {
+  history = [];
+  msgContainer.innerHTML = '';
+  typingEl.classList.remove('show');
+  emptyEl.style.display = 'flex';
+  chatBodyEl.style.display = 'none';
+  inpEl.value = '';
+  inpEl.style.height = 'auto';
+  sendBtn.classList.remove('active');
+  closeSidebar();
+  inpEl.focus();
+}
+
+function showChat() {
+  emptyEl.style.display = 'none';
+  chatBodyEl.style.display = 'flex';
+  chatBodyEl.style.flexDirection = 'column';
+}
+
+function addMessage(role, content, streaming = false) {
+  const row = document.createElement('div');
+  row.className = `msg-row ${role}`;
+  row.style.padding = '4px max(16px, calc((100% - 800px)/2))';
+
+  if (role === 'ai') {
+    const icon = document.createElement('div');
+    icon.className = 'msg-icon ai-icon';
+    icon.innerHTML = `<svg class="bomb-logo${streaming ? ' running' : ''}" viewBox="0 0 220 220"><use href="#bomb-icon"/></svg>`;
+    row.appendChild(icon);
+  }
+
+  const wrap = document.createElement('div');
+  wrap.style.flex = '1';
+  wrap.style.minWidth = '0';
+
+  const bubble = document.createElement('div');
+  bubble.className = `msg-bubble ${role}`;
+
+  if (role === 'ai') {
+    bubble.innerHTML = streaming ? '<span class="cursor"></span>' : marked.parse(content);
+  } else {
+    bubble.textContent = content;
+  }
+  wrap.appendChild(bubble);
+
+  if (role === 'ai' && !streaming) {
+    const actions = document.createElement('div');
+    actions.className = 'msg-actions';
+    actions.innerHTML = `
+      <button class="act-btn" onclick="copyMsg(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        Copy
+      </button>
+      <button class="act-btn" onclick="regenMsg()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+        Regenerate
+      </button>`;
+    wrap.appendChild(actions);
+  }
+
+  row.appendChild(wrap);
+  msgContainer.insertBefore(row, typingEl.parentElement === msgContainer ? typingEl : null);
+  chatBodyEl.scrollTop = chatBodyEl.scrollHeight;
+  return bubble;
+}
+
+function getMockReply(userText) {
+  const t = userText.toLowerCase();
+
+  if (t.includes('offer') || t.includes('killer')) {
+    return [
+      '## 🧲 Offer Idea',
+      '',
+      '**"Bring a Friend, Both Get 50% Off Your First Visit"**',
+      '',
+      'This works because your existing customers become your sales team — everyone loves a reason to invite a friend, and you get two new touchpoints for the price of one discount.',
+      '',
+      '**Why it converts:**',
+      '- Zero risk for the friend (first-time only)',
+      '- Built-in urgency (limited to this month)',
+      '- Easy to say in a DM or post caption',
+      '',
+      '**CTA:** DM us "FRIEND" and we will send you both a code before Sunday.'
+    ].join('\n');
+  }
+
+  if (t.includes('reel') || t.includes('video') || t.includes('script')) {
+    return [
+      '## 🎥 Reel Script',
+      '',
+      '**Hook (0-3s):** "Nobody tells you this about running a small business..."',
+      '',
+      '**Body (3-15s):** Quick cuts of behind-the-scenes moments — prepping, opening up, a genuine customer reaction.',
+      '',
+      '**Payoff (15-20s):** Show the result/product close up with on-screen text: "This is why people keep coming back."',
+      '',
+      '**CTA (end card):** "Tap the link in bio to book — spots go fast this week."'
+    ].join('\n');
+  }
+
+  if (t.includes('dm') || t.includes('reply') || t.includes('template')) {
+    return [
+      '## 💬 DM Reply Templates',
+      '',
+      '- **"price?"** → "Great question! Our starting package is [$X] — want me to send the full breakdown?"',
+      '- **"details?"** → "Happy to help! Here is exactly what is included: ..."',
+      '- **"is this still available?"** → "Yes! We have a few spots left this week — want me to hold one for you?"'
+    ].join('\n');
+  }
+
+  if (t.includes('7-day') || t.includes('calendar') || t.includes('plan') && !t.includes('growth')) {
+    return [
+      '## 🗓️ 7-Day Content Plan',
+      '',
+      '| Day | Content |',
+      '|-----|---------|',
+      '| Day 1 | Behind-the-scenes reel |',
+      '| Day 2 | Customer testimonial post |',
+      '| Day 3 | Offer announcement |',
+      '| Day 4 | Educational carousel |',
+      '| Day 5 | Team/founder story |',
+      '| Day 6 | UGC repost + CTA |',
+      '| Day 7 | Weekly recap + next offer teaser |'
+    ].join('\n');
+  }
+
+  if (t.includes('post')) {
+    return [
+      '## 📱 Post Ideas',
+      '',
+      '- **Idea 1:** A quick "day in the life" carousel showing how much care goes into what you do.',
+      '- **Idea 2:** Before/after or transformation post with a strong CTA to book.',
+      '- **Idea 3:** A myth-busting post addressing a common objection customers have.'
+    ].join('\n');
+  }
+
+  return [
+    '## 🔹 Business Growth Plan (mock preview)',
+    '',
+    '_This is a simulated reply — no API call was made. Turn off MOCK_MODE once your real key is ready._',
+    '',
+    '### 1. 📱 Post Ideas',
+    '- **Idea 1:** Day-in-the-life carousel showing your process',
+    '- **Idea 2:** Before/after transformation post',
+    '- **Idea 3:** Myth-busting post addressing a common objection',
+    '',
+    '### 2. 🧲 Offer Idea',
+    '**"Bring a Friend, Both Get 50% Off"** — turns customers into your sales team.',
+    '',
+    '### 3. 🎥 Reel Idea',
+    'Hook with a surprising truth about your industry, show proof, end with a clear CTA.',
+    '',
+    '### 4. 💬 DM Reply',
+    '**"price?"** → "Here is our starting package — want the full breakdown?"',
+    '',
+    '**CTA:** DM "GROWTH" for the full strategy session.'
+  ].join('\n');
+}
+
+async function streamMockReply(userText, aiBubble) {
+  const full = getMockReply(userText);
+  const parts = full.split(/(\s+)/);
+  let acc = '';
+  for (const part of parts) {
+    acc += part;
+    aiBubble.innerHTML = marked.parse(acc) + '<span class="cursor"></span>';
+    chatBodyEl.scrollTop = chatBodyEl.scrollHeight;
+    await new Promise(r => setTimeout(r, 12 + Math.random() * 25));
+  }
+  return full;
+}
+
+function finalizeAIMessage(aiBubble, fullText) {
+  aiBubble.innerHTML = marked.parse(fullText);
+  const finishedIcon = aiBubble.closest('.msg-row')?.querySelector('.bomb-logo.running');
+  if (finishedIcon) finishedIcon.classList.remove('running');
+
+  const actions = document.createElement('div');
+  actions.className = 'msg-actions';
+  actions.innerHTML = `
+      <button class="act-btn" onclick="copyMsg(this,'${btoa(encodeURIComponent(fullText))}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        Copy
+      </button>
+      <button class="act-btn" onclick="regenMsg()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+        Regenerate
+      </button>`;
+  aiBubble.parentElement.appendChild(actions);
+}
+
+async function sendMsg(override) {
+  const text = override || inpEl.value.trim();
+  if (!text || busy) return;
+  inpEl.value = '';
+  inpEl.style.height = 'auto';
+  sendBtn.classList.remove('active');
+  showChat();
+
+  addMessage('user', text);
+  history.push({ role: 'user', content: text });
+  addToHistory(text);
+
+  busy = true;
+  typingEl.classList.add('show');
+  chatBodyEl.scrollTop = chatBodyEl.scrollHeight;
+
+  typingEl.classList.remove('show');
+  const aiBubble = addMessage('ai', '', true);
+  let fullText = '';
+
+  try {
+    if (MOCK_MODE) {
+      fullText = await streamMockReply(text, aiBubble);
+    } else {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_completion_tokens: 2048,
+          temperature: 1,
+          top_p: 1,
+          reasoning_effort: 'medium',
+          stream: true,
+          messages: [{ role: 'system', content: SYSTEM }, ...history]
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error('API Error: ' + res.status + ' ' + err);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed === 'data: [DONE]') continue;
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const json = JSON.parse(trimmed.slice(6));
+              const delta = json.choices?.[0]?.delta?.content || '';
+              if (delta) {
+                fullText += delta;
+                aiBubble.innerHTML = marked.parse(fullText) + '<span class="cursor"></span>';
+                chatBodyEl.scrollTop = chatBodyEl.scrollHeight;
+              }
+            } catch {}
+          }
+        }
+      }
+    }
+
+    finalizeAIMessage(aiBubble, fullText);
+    history.push({ role: 'assistant', content: fullText });
+
+  } catch (err) {
+    console.error(err);
+    aiBubble.innerHTML = `<span style="color:#f87171">⚠️ Connection issue: ${err.message}</span>`;
+    const errIcon = aiBubble.closest('.msg-row')?.querySelector('.bomb-logo.running');
+    if (errIcon) errIcon.classList.remove('running');
+  } finally {
+    busy = false;
+    chatBodyEl.scrollTop = chatBodyEl.scrollHeight;
+  }
+}
+
+function useCard(el) {
+  const sub = el.querySelector('.card-sub').textContent;
+  inpEl.value = sub;
+  sendBtn.classList.add('active');
+  sendMsg(sub);
+}
+
+function addToHistory(text) {
+  const title = text.length > 38 ? text.slice(0, 38) + '…' : text;
+  const item = document.createElement('div');
+  item.className = 'hist-item';
+  item.innerHTML = `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>${title}`;
+  item.onclick = () => closeSidebar();
+  historyEl.prepend(item);
+}
+
+function copyMsg(btn, encoded) {
+  let text;
+  if (encoded) {
+    try { text = decodeURIComponent(atob(encoded)); } catch { text = ''; }
+  } else {
+    const bubble = btn.closest('.msg-row').querySelector('.msg-bubble');
+    text = bubble ? bubble.innerText : '';
+  }
+  navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
+}
+
+function regenMsg() {
+  if (busy || history.length < 2) return;
+  const last = history[history.length - 2];
+  history = history.slice(0, -2);
+  const rows = msgContainer.querySelectorAll('.msg-row');
+  if (rows.length >= 2) { rows[rows.length - 1].remove(); rows[rows.length - 2].remove(); }
+  sendMsg(last.content);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'n') { e.preventDefault(); newChat(); }
+});
+
+setTimeout(() => inpEl.focus(), 100);
+</script>
+</body>
+</html>
